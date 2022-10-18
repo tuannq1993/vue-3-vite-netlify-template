@@ -1,41 +1,33 @@
 <template>
-  <div id="root">
-    <Modals />
-    <PageLoader v-if="!isAppReady" />
-    <div id="app-frame">
-      <router-view></router-view>
+  <div class="w-full h-full flex">
+    <Navigation @onResize="handleNavigationResize" :expanded="expanded" />
+    <div :style="getContentStyles" id="content">
+      <ErrorPage v-if="error" />
+      <PageLoader v-else-if="loading" />
+      <router-view class="page" v-else />
     </div>
   </div>
 </template>
 
 <script lang="ts">
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { defineComponent, ref, computed } from '@vue/composition-api'
+import { useQuery } from '@vue/apollo-composable'
+import { mutations } from '@/store'
+import { getProjectWithUsersAndIssues } from '@/graphql/queries/project'
 import Navigation from '@/components/Navigation/Navigation.vue'
 import PageLoader from '@/components/Loader.vue'
 import ErrorPage from '@/components/ErrorPage.vue'
-import Modals from '@/components/Modals/Modals.vue'
-import { useQuery } from '@vue/apollo-composable'
-import { getProjectWithUsersAndIssues } from '@/graphql/queries/project'
-import { mutations, getters } from './store'
 export default defineComponent({
   components: {
     Navigation,
     PageLoader,
-    ErrorPage,
-    Modals
+    ErrorPage
   },
   setup() {
     const expanded = ref<boolean>(true)
     const handleNavigationResize = (isExpanded: boolean) => {
       expanded.value = isExpanded
     }
-
-    const isAppReady = computed(
-      () =>
-        getters.isAuthenticated() &&
-        Object.keys(getters.currentUser()).length !== 0
-    )
 
     const getContentStyles = computed(() => ({
       'padding-left': `${expanded.value ? 240 : 20}` + 'px',
@@ -56,14 +48,15 @@ export default defineComponent({
     )
 
     onResult(res => {
-      const { data } = res as any
-      if (data) {
-        mutations.setProject(data.getProjectWithUsersAndIssues)
+      if (res) {
+        const { data } = res
+        if (data) {
+          mutations.setProject(data.getProjectWithUsersAndIssues)
+        }
       }
     })
 
     return {
-      isAppReady,
       loading,
       error,
       expanded,
